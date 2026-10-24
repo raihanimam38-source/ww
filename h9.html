@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>কাজের লগ</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #03071a; --surface: #0a1230; --text: #e6ebff; --muted: #8a94b8; --border: #1b2650;
+    --success: #22c55e; --fail: #ef4444; --lesson: #3b82f6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: 'Noto Sans Bengali', system-ui, sans-serif; background: var(--bg); color: var(--text);
+    padding: env(safe-area-inset-top, 0px) 12px env(safe-area-inset-bottom, 0px);
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 16px 0 40px; }
+  h1 { font-size: 1.4rem; margin: 8px 0 14px; text-align: center; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+  .label { font-size: 0.85rem; color: var(--muted); margin-bottom: 6px; display: block; }
+  select, input[type="date"], input[type="text"] {
+    font: inherit; padding: 9px 10px; border: 1px solid var(--border); border-radius: 10px;
+    background: var(--bg); color: var(--text);
+  }
+  select { width: 100%; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .row > * { flex: 1; min-width: 0; }
+  button {
+    font: inherit; padding: 9px 14px; border-radius: 10px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  }
+  button.primary { background: var(--lesson); border-color: transparent; color: #fff; }
+  button.danger { color: var(--fail); }
+  .tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+  .tab { flex: 1; font-size: 0.92rem; }
+  .tab.active { color: #fff; border-color: transparent; }
+  .tab[data-key="success"].active { background: var(--success); }
+  .tab[data-key="failure"].active { background: var(--fail); }
+  .tab[data-key="lesson"].active { background: var(--lesson); }
+  .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .head h2 { font-size: 1.05rem; margin: 0; }
+  .count { font-size: 0.9rem; color: var(--muted); }
+  .bar { height: 6px; background: var(--border); border-radius: 4px; overflow: hidden; margin-bottom: 12px; }
+  .bar > div { height: 100%; width: 0; transition: width .2s; }
+  .slot { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+  .num { min-width: 36px; text-align: right; font-size: 0.85rem; color: var(--muted); }
+  .slot input { flex: 1; min-width: 0; }
+  .footer { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #111827; color: #fff;
+    padding: 10px 16px; border-radius: 10px; font-size: 0.9rem; opacity: 0; pointer-events: none; transition: opacity .2s;
+  }
+  .toast.show { opacity: 1; }
+  .pt { width: 100%; border-collapse: collapse; font-size: 0.92rem; margin-top: 8px; }
+  .pt th, .pt td { padding: 8px 6px; border-bottom: 1px solid var(--border); text-align: left; }
+  .pt th:not(:first-child), .pt td:not(:first-child) { text-align: right; }
+  .pt .pos { color: #22c55e; }
+  .pt .neg { color: #ef4444; }
+  .pt tfoot td { font-weight: 700; }
+  .overlay { position: fixed; inset: 0; z-index: 90; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(3, 7, 26, 0.85); }
+  .overlay.hidden { display: none; }
+  .rem-btn {
+    position: fixed; right: 12px; bottom: 12px; z-index: 70; padding: 8px 12px; border: none; border-radius: 10px;
+    color: #fff; font: inherit; font-size: 0.85rem; cursor: pointer; background: #374151;
+  }
+  .rem-btn.alert { animation: redBlink 0.7s infinite alternate; }
+  @keyframes redBlink {
+    from { background: #ef4444; box-shadow: 0 0 6px #ef4444, 0 0 18px #ff0000; }
+    to   { background: #7f1d1d; box-shadow: 0 0 2px #7f1d1d; }
+  }
+  .rem-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--border); }
+  .rem-done { padding: 6px 12px; border: none; border-radius: 8px; background: #16a34a; color: #fff; font: inherit; cursor: pointer; }
+  #tasksPanel { position: fixed; inset: 0; z-index: 85; background: var(--bg); display: flex; flex-direction: column; }
+  #tasksPanel.hidden { display: none; }
+  .tp-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+  .tp-head h2 { margin: 0; font-size: 1.2rem; }
+  .tp-body { flex: 1; overflow-y: auto; width: 100%; max-width: 720px; margin: 0 auto; padding: 12px 16px 40px; }
+  .tp-sec { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin-bottom: 14px; }
+  .tp-sec h3 { margin: 0 0 4px; font-size: 1rem; }
+  .tr-row { display: flex; gap: 6px; align-items: center; padding: 3px 0; }
+  .tr-row .n { min-width: 30px; text-align: right; color: var(--muted); font-size: 0.8rem; }
+  .tr-row input {
+    font: inherit; padding: 7px 8px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--bg); color: var(--text); min-width: 0;
+  }
+  .tr-row input[type="text"] { flex: 1; }
+  .tr-row input[type="time"], .tr-row input[type="date"] { width: 120px; }
+  .tr-row .st { min-width: 56px; text-align: right; font-size: 0.75rem; color: var(--muted); }
+  .hidden { display: none; }
+  #gate {
+    position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 18px;
+    background: rgba(3, 7, 26, 0.94); backdrop-filter: blur(4px);
+  }
+  #gate.hidden { display: none; }
+  .gate-btn {
+    width: 170px; height: 170px; border-radius: 50%; border: none; cursor: pointer;
+    font: inherit; font-size: 2.4rem; font-weight: 700; color: #fff; letter-spacing: 2px;
+    background: radial-gradient(circle at 30% 30%, #3b82f6, #1e3a8a);
+    box-shadow: 0 0 40px rgba(59, 130, 246, 0.6);
+    transition: transform .1s;
+  }
+  .gate-btn:active { transform: scale(0.96); }
+  .gate-sub { color: var(--muted); font-size: 0.9rem; }
+  .pen-box { width: 100%; max-width: 480px; padding: 0 16px; }
+  .pen-title { font-size: 1.3rem; font-weight: 700; text-align: center; margin-bottom: 6px; }
+  .pen-msg { font-size: 0.9rem; text-align: center; margin-bottom: 10px; min-height: 1.2em; }
+  .pen-box textarea {
+    width: 100%; padding: 10px; font: inherit; border-radius: 10px; resize: vertical;
+    border: 1px solid var(--border); background: var(--bg); color: var(--text);
+  }
+  .pen-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 10px; }
+  .pen-count { color: var(--muted); font-size: 0.95rem; }
+  .pen-submit {
+    padding: 10px 16px; border: none; border-radius: 10px; color: #fff; font: inherit; cursor: pointer;
+    background: var(--fail);
+  }
+  .pen-submit:disabled { opacity: 0.4; cursor: not-allowed; }
+  .mytime-wrap { text-align: center; margin-bottom: 12px; }
+  #timeModal {
+    position: fixed; inset: 0; z-index: 90; display: flex; align-items: center; justify-content: center;
+    padding: 16px; background: rgba(3, 7, 26, 0.85);
+  }
+  #timeModal.hidden { display: none; }
+  .modal-box {
+    width: 100%; max-width: 420px; max-height: 80vh; overflow-y: auto;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px;
+  }
+  .log-list { list-style: none; padding: 0; margin: 10px 0 0; }
+  .log-list li {
+    display: flex; justify-content: space-between; gap: 10px; padding: 10px 0; border-top: 1px solid var(--border);
+  }
+  .log-list .when { font-weight: 600; }
+  .log-list .time { color: var(--muted); font-variant-numeric: tabular-nums; }
+  #dragonLayer { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+  .wrap { position: relative; z-index: 1; }
+</style>
+</head>
+<body>
+<svg id="dragonLayer" aria-hidden="true" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <g id="Cabeza" transform="matrix(1, 0, 0, 1, 0, 0)">
+        <path style="fill:#0b3d20;fill-opacity:1"
+          d="M-28.9,-1.1L-28.55 -1.95Q-28.1 -3.1 -27.25 -2.95L-26.7 -2.95Q-27.7 -1.65 -28.9 -1.1M-18.35,-1.8Q-15.1 -10.3 -9.6 -6.05Q-15.1 -6.2 -18.35 -1.8M-18.35,1.1Q-15.1 5.45 -9.6 5.35Q-15.1 9.55 -18.35 1.1M-26.7,2.2L-27.25 2.25Q-28.1 2.4 -28.55 1.2L-28.9 0.35Q-27.7 0.9 -26.7 2.2" />
+        <path style="fill:#1a1a1a;fill-opacity:1"
+          d="M-21.05,-8.25Q-13.6 -15.95 -1.3 -12.1Q-7.85 -8.5 -5.85 -4.35Q-2.3 -4.85 10.5 0.15Q0 4.35 -5.85 3.65Q-7.85 7.75 -1.25 12.45Q-13.6 15.2 -21.05 7.5Q-29.55 4.05 -30.2 -0.35Q-29.55 -4.8 -21.05 -8.25M-26.7,-2.95L-27.25 -2.95Q-28.1 -3.1 -28.55 -1.95L-28.9 -1.1Q-27.7 -1.65 -26.7 -2.95M-9.6,-6.05Q-15.1 -10.3 -18.35 -1.8Q-15.1 -6.2 -9.6 -6.05M-9.6,5.35Q-15.1 5.45 -18.35 1.1Q-15.1 9.55 -9.6 5.35M-28.9,0.35L-28.55 1.2Q-28.1 2.4 -27.25 2.25L-26.7 2.2Q-27.7 0.9 -28.9 0.35" />
+      </g>
+      <g id="Aletas" transform="matrix(1, 0, 0, 1, 0, 0)">
+        <linearGradient id="LinearGradID_1" gradientUnits="userSpaceOnUse"
+          gradientTransform="matrix(0.0935974, 0, 0, 0.188782, -20.55, 0)" spreadMethod="pad" x1="-819.2" y1="0"
+          x2="819.2" y2="0">
+          <stop offset="0" style="stop-color:#14532d;stop-opacity:1" />
+          <stop offset="1" style="stop-color:#0b3d20;stop-opacity:1" />
+        </linearGradient>
+        <path style="fill:url(#LinearGradID_1) "
+          d="M29.75,-36.85Q-17.75 -61.45 -42.05 -40.95L-45.35 -38.35L-53.7 -41.15L-51.15 -44.85Q-34.85 -68.4 21 -57.8Q-32.2 -72.1 -50.25 -50Q-53.85 -45.65 -56.05 -41.95L-64.7 -43.35L-60.6 -50.3Q-45.9 -75.55 5.1 -79.35Q-2.2 -79.8 -9.45 -79.15Q-16.2 -78.55 -22.85 -77.15Q-29.85 -75.65 -36.5 -73Q-43.05 -70.4 -48.8 -66.85Q-54.55 -63.35 -56.8 -60.3L-60.5 -55.4Q-62.95 -52.1 -67 -43.55L-70.55 -43.55L-76.35 -42.95Q-74.6 -49.1 -71.85 -54.85Q-68.9 -61.25 -64.8 -67.1Q-60.8 -73 -55.45 -77.55Q-49.9 -82.35 -43.65 -85.85L-30.6 -92.7Q-24.05 -95.95 -17 -98.25Q-63.75 -86.35 -73.65 -57.1Q-75.75 -50.75 -77.45 -42.75Q-82.9 -41.75 -88 -39.65Q-87.65 -46.65 -86.3 -53.05Q-79.8 -89.8 -36.65 -117.2Q-80.65 -94.5 -87.55 -59.55Q-88.65 -54.15 -88.95 -39.4L-89.8 -38.85L-92.7 -37.6Q-93.75 -44.35 -94.1 -51.15Q-94.4 -58.2 -93.25 -65.1Q-92.15 -72.5 -90.05 -79.65Q-88.05 -86.55 -85 -93Q-82.1 -99.3 -78.45 -105.15Q-74.6 -111.35 -70.25 -117.25Q-65.95 -123.1 -61.1 -128.55Q-70.3 -119.35 -77.9 -108.7Q-86 -97.3 -90.8 -84.05Q-95.8 -70.5 -96 -56.15Q-96.1 -46 -94.05 -36.05L-93.25 -31.55Q-93.5 -35.65 -92.35 -36Q-79.85 -42 -66.6 -40.45Q-52.45 -38.85 -39.2 -33.25Q-28.3 -29.9 -21.25 -24.15Q-17.8 -23.3 -8.6 -15.6Q-12.1 -20.75 -16.75 -24.5Q-24.55 -30.7 -34.25 -34.05L-42.55 -37Q-38.9 -41.25 -31.5 -43.25Q-24.05 -45.3 -16.2 -46.3Q-8.35 -47.35 -1 -46Q5.95 -44.75 12.75 -42.85Q19.85 -40.9 29.75 -36.85M-92.45,-27.35L-94.95 -36.25Q-109.7 -105 -27.95 -154.65Q-98.65 -103.8 -91.75 -39.4L-89.95 -40.2Q-92.2 -105.25 -5.6 -130.9Q-78.8 -99.95 -87.45 -40.9Q-83.15 -42.95 -78.45 -43.95Q-70 -101.3 17.65 -103.8Q-56.9 -93.4 -74.5 -44.55L-67.4 -45.45Q-49.1 -94.95 39.25 -75.65Q-36.75 -84.35 -62.25 -44.25L-57.3 -43.6Q-31.65 -86.5 56.15 -46.05Q-20.3 -73.35 -51.35 -41.7L-45.95 -39.75Q-17.85 -71.35 51.85 -24.8Q-8.7 -56.4 -39.75 -37.05Q-28.15 -34.05 -14.25 -24.45Q-8.6 -19.85 -5.8 -16.95Q5.95 -2.4 20 0Q5.95 2.4 -5.8 16.95Q-8.6 19.85 -14.25 24.45Q-28.15 34.05 -39.75 37.05Q-8.7 56.4 51.85 24.8Q-17.85 71.35 -45.95 39.75L-51.35 41.7Q-20.3 73.35 56.15 46.1Q-31.65 86.5 -57.3 43.65L-62.25 44.3Q-36.75 84.35 39.25 75.7Q-49.1 94.95 -67.4 45.5L-74.5 44.6Q-56.9 93.4 17.65 103.85Q-70 101.3 -78.45 43.95Q-83.15 42.95 -87.45 40.9Q-78.8 99.95 -5.6 130.9Q-92.2 105.25 -89.95 40.25L-91.75 39.4Q-98.65 103.8 -27.95 154.65Q-109.7 105 -94.95 36.3L-92.45 27.35Q-93.05 33.9 -92.05 34.75Q-91.1 35.55 -88.95 36.7L-87.95 37Q-83.7 38.25 -79.05 38.8L-77.25 38.95Q-72.55 39.3 -67.5 38.85L-65.45 38.65Q-44.4 36.05 -17.8 19.6Q-9.9 12.8 -15.15 4.4Q-18.15 3.15 -19 0Q-18.15 -3.15 -15.15 -4.4Q-9.9 -12.8 -17.8 -19.6L-17.8 -19.55Q-44.4 -36.05 -65.45 -38.6L-67.5 -38.8Q-72.55 -39.3 -77.25 -38.95L-79.05 -38.75Q-83.7 -38.25 -87.95 -36.95L-88.95 -36.65Q-91.1 -35.55 -92.05 -34.7Q-93.05 -33.9 -92.45 -27.35M-8.6,15.6Q-17.8 23.3 -21.25 24.2Q-28.3 29.9 -39.2 33.3Q-52.45 38.85 -66.6 40.5Q-79.85 42 -92.35 36Q-93.5 35.65 -93.25 31.55L-94.05 36.1Q-96.1 46.05 -96 56.15Q-95.8 70.5 -90.8 84.1Q-86 97.3 -77.9 108.75Q-70.3 119.35 -61.1 128.6Q-65.95 123.1 -70.25 117.25Q-74.6 111.35 -78.45 105.15Q-82.1 99.3 -85 93Q-88.05 86.55 -90.05 79.7Q-92.15 72.5 -93.25 65.1Q-94.4 58.2 -94.1 51.2Q-93.75 44.35 -92.7 37.6L-89.8 38.9L-88.95 39.45Q-88.65 54.15 -87.55 59.55Q-80.65 94.5 -36.65 117.25Q-79.8 89.8 -86.3 53.1Q-87.65 46.65 -88 39.65Q-82.9 41.75 -77.45 42.75Q-75.75 50.75 -73.65 57.15Q-63.75 86.35 -17 98.3Q-24.05 95.95 -30.6 92.75L-43.65 85.9Q-49.9 82.35 -55.45 77.6Q-60.8 73 -64.8 67.15Q-68.9 61.25 -71.85 54.85Q-74.6 49.1 -76.35 42.95L-70.55 43.6L-67 43.6Q-62.95 52.1 -60.5 55.4L-56.8 60.35Q-54.55 63.35 -48.8 66.9Q-43.05 70.4 -36.5 73Q-29.85 75.65 -22.85 77.15Q-16.2 78.55 -9.45 79.15Q-2.2 79.8 5.1 79.35Q-45.9 75.55 -60.6 50.3L-64.7 43.4L-56.05 41.95Q-53.85 45.65 -50.25 50Q-32.2 72.1 21 57.85Q-34.85 68.4 -51.15 44.85L-53.7 41.2L-45.35 38.35L-42.05 40.95Q-17.75 61.45 29.75 36.85Q19.85 40.9 12.75 42.9Q5.95 44.75 -1 46Q-8.35 47.35 -16.2 46.35Q-24.05 45.3 -31.5 43.3Q-38.9 41.25 -42.55 37.05L-34.25 34.05Q-24.55 30.7 -16.75 24.5Q-12.1 20.75 -8.6 15.6" />
+      </g>
+      <g id="Espina" transform="matrix(1, 0, 0, 1, 0, 0)">
+        <linearGradient id="LinearGradID_2" gradientUnits="userSpaceOnUse"
+          gradientTransform="matrix(0.0229492, 0, 0, -0.0152893, 0, 0.05)" spreadMethod="pad" x1="-819.2" y1="0"
+          x2="819.2" y2="0">
+          <stop offset="0" style="stop-color:#14532d;stop-opacity:1" />
+          <stop offset="1" style="stop-color:#0b3d20;stop-opacity:1" />
+        </linearGradient>
+        <path style="fill:url(#LinearGradID_2) "
+          d="M-18.8,0Q-17.85 -5.7 -12.3 -9.6Q-11.2 -5.35 -6.5 -8.25L-6.45 -8.2L-6.2 -8.3Q1.25 -16.25 6.65 -12.4Q0.05 -12.55 0 -5.95Q2.7 -2.4 7.75 -4.1Q18 -1.45 18.8 0L-18.8 0" />
+        <linearGradient id="LinearGradID_3" gradientUnits="userSpaceOnUse"
+          gradientTransform="matrix(0.0229492, 0, 0, 0.0152893, 0, -0.05)" spreadMethod="pad" x1="-819.2" y1="0"
+          x2="819.2" y2="0">
+          <stop offset="0" style="stop-color:#14532d;stop-opacity:1" />
+          <stop offset="1" style="stop-color:#0b3d20;stop-opacity:1" />
+        </linearGradient>
+        <path style="fill:url(#LinearGradID_3) "
+          d="M18.8,0Q18 1.45 7.75 4.1Q2.7 2.4 0 5.95Q0.05 12.55 6.65 12.4Q1.25 16.25 -6.2 8.35Q-6.35 8.25 -6.45 8.25L-6.5 8.25Q-11.2 5.35 -12.3 9.6Q-17.85 5.7 -18.8 0L18.8 0" />
+      </g>
+    </defs>
+    <g id="dragonBody"></g>
+  </svg>
+
+<div id="gate">
+  <button class="gate-btn" id="gateBtn">IN</button>
+  <div class="gate-sub" id="gateSub">প্রবেশ করতে IN চাপুন</div>
+  <div id="penalty" class="pen-box hidden">
+    <div class="pen-title">⚠️ শাস্তি</div>
+    <div class="pen-msg" id="penMsg"></div>
+    <textarea id="penText" rows="9" placeholder="প্রতি লাইনে একটি করে লিখুন (কমপক্ষে ২০ লাইন)" autocomplete="off" spellcheck="false"></textarea>
+    <div class="pen-row">
+      <span class="pen-count" id="penCount">0 / 20</span>
+      <button class="pen-submit" id="penSubmit" disabled>জমা দিয়ে প্রবেশ করুন</button>
+    </div>
+  </div>
+</div>
+<div class="wrap">
+  <h1>কাজের লগ</h1>
+  <div class="mytime-wrap">
+    <button class="primary" id="myTimeBtn">My time</button>
+    <button class="primary" id="tasksBtn" style="margin-left:8px">Tasks</button>
+  </div>
+
+  <div class="card">
+    <span class="label">তারিখ বেছে নিন</span>
+    <select id="dateSelect"></select>
+    <div class="row" style="margin-top:10px">
+      <input type="date" id="newDate">
+      <button class="primary" id="openDateBtn">নতুন পেজ খুলুন</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <span class="label">পয়েন্ট টেবিল</span>
+    <table class="pt">
+      <thead>
+        <tr><th>বিভাগ</th><th>প্রতি এন্ট্রি</th><th>সংখ্যা</th><th>মোট</th></tr>
+      </thead>
+      <tbody id="pointRows"></tbody>
+      <tfoot>
+        <tr><td colspan="3">এই তারিখের মোট</td><td id="dayTotal"></td></tr>
+        <tr><td colspan="3">সব দিন মিলিয়ে</td><td id="allTotal"></td></tr>
+        <tr><td colspan="3" id="avgLabel">গড় পয়েন্ট প্রতি দিন</td><td id="avgPerDay"></td></tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="tabs">
+      <button class="tab active" data-key="success">✅ সফল কাজ</button>
+      <button class="tab" data-key="failure">❌ অসফল কাজ</button>
+      <button class="tab" data-key="lesson">💡 শিক্ষা</button>
+    </div>
+    <div class="head">
+      <h2 id="title"></h2>
+      <span class="count" id="count"></span>
+    </div>
+    <div class="bar"><div id="bar"></div></div>
+    <div id="slots"></div>
+  </div>
+
+  <div class="footer">
+    <button id="exportBtn">JSON এক্সপোর্ট</button>
+    <button id="importBtn">JSON ইমপোর্ট</button>
+    <button class="danger" id="deleteDateBtn">এই তারিখ মুছুন</button>
+    <input type="file" id="importFile" accept="application/json" class="hidden">
+  </div>
+</div>
+<div id="timeModal" class="hidden">
+  <div class="modal-box">
+    <div class="head">
+      <h2>My time</h2>
+      <span class="count" id="timeCount"></span>
+    </div>
+    <ul class="log-list" id="timeList"></ul>
+    <div class="footer">
+      <button id="timeClose">বন্ধ করুন</button>
+    </div>
+  </div>
+</div>
+<button class="rem-btn" id="remBtn">reminder task</button>
+<div id="remModal" class="overlay hidden">
+  <div class="modal-box">
+    <div class="head">
+      <h2>Reminder</h2>
+      <span class="count" id="remCount"></span>
+    </div>
+    <div id="remList"></div>
+    <div class="footer"><button id="remClose">বন্ধ করুন</button></div>
+  </div>
+</div>
+<div id="tasksPanel" class="hidden">
+  <div class="tp-head">
+    <h2>Tasks</h2>
+    <button id="tasksClose">← ফিরে যান</button>
+  </div>
+  <div class="tp-body">
+    <section class="tp-sec">
+      <h3>আমার কাজ (১–১০০)</h3>
+      <p class="hint">সময় ও কাজ লিখুন</p>
+      <div id="taskRows"></div>
+    </section>
+    <section class="tp-sec">
+      <h3>মনে রাখার বিষয় (১–১০০)</h3>
+      <div id="rememberRows"></div>
+    </section>
+    <section class="tp-sec">
+      <h3>তারিখভিত্তিক Reminder (১–১০০)</h3>
+      <p class="hint">তারিখ দিলে সেদিন সাইটে ঢুকলে লাল বাটন জ্বলবে। Done চাপলে বোঝা যাবে আপনি দেখেছেন।</p>
+      <div id="reminderRows"></div>
+    </section>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+  const SLOTS = 100;
+  const KEY = 'workLogV2';
+  const CATS = {
+    success: { title: 'সফল কাজ', color: '#16a34a' },
+    failure: { title: 'অসফল কাজ', color: '#dc2626' },
+    lesson:  { title: 'যা শিখলাম', color: '#2563eb' }
+  };
+
+  const POINTS = { success: 20, failure: -5, lesson: 13 };
+
+  let store = {};
+  let curDate = todayStr();
+  let curCat = 'success';
+
+  const $ = id => document.getElementById(id);
+
+  function todayStr() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  function blankDay() {
+    return {
+      success: Array(SLOTS).fill(''),
+      failure: Array(SLOTS).fill(''),
+      lesson: Array(SLOTS).fill('')
+    };
+  }
+
+  function ensureDay(d) {
+    if (!store[d]) store[d] = blankDay();
+    for (const k of Object.keys(CATS)) {
+      if (!Array.isArray(store[d][k]) || store[d][k].length !== SLOTS) {
+        const old = Array.isArray(store[d][k]) ? store[d][k] : [];
+        store[d][k] = Array.from({ length: SLOTS }, (_, i) => (typeof old[i] === 'string' ? old[i] : ''));
+      }
+    }
+  }
+
+  function load() {
+    try { store = JSON.parse(localStorage.getItem(KEY)) || {}; } catch { store = {}; }
+  }
+
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(store)); } catch {}
+  }
+
+  function toast(msg) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => t.classList.remove('show'), 1600);
+  }
+
+  function renderDates() {
+    const sel = $('dateSelect');
+    const dates = Object.keys(store).sort().reverse();
+    if (!dates.includes(curDate)) dates.unshift(curDate);
+    sel.innerHTML = '';
+    for (const d of dates) {
+      const opt = document.createElement('option');
+      opt.value = d;
+      opt.textContent = store[d] ? d : `${d} (নতুন)`;
+      sel.appendChild(opt);
+    }
+    sel.value = curDate;
+  }
+
+  function renderTabs() {
+    document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.key === curCat));
+  }
+
+  function renderSlots() {
+    const day = store[curDate];
+    const cfg = CATS[curCat];
+    const wrap = $('slots');
+    wrap.innerHTML = '';
+
+    for (let i = 0; i < SLOTS; i++) {
+      const row = document.createElement('div');
+      row.className = 'slot';
+
+      const num = document.createElement('span');
+      num.className = 'num';
+      num.textContent = i + 1;
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.maxLength = 300;
+      input.value = day[curCat][i];
+      input.placeholder = `${cfg.title} #${i + 1}`;
+      input.dataset.i = i;
+
+      row.append(num, input);
+      wrap.appendChild(row);
+    }
+
+    $('title').textContent = cfg.title;
+    updateStats();
+  }
+
+  function updateStats() {
+    const arr = store[curDate][curCat];
+    const filled = arr.filter(x => x.trim()).length;
+    $('count').textContent = `${filled} / ${SLOTS}`;
+    $('bar').style.width = (filled / SLOTS * 100) + '%';
+    $('bar').style.background = CATS[curCat].color;
+    renderPoints();
+  }
+
+  function render() {
+    ensureDay(curDate);
+    renderDates();
+    renderTabs();
+    renderSlots();
+  }
+
+  $('slots').addEventListener('input', e => {
+    const i = Number(e.target.dataset.i);
+    if (Number.isNaN(i)) return;
+    store[curDate][curCat][i] = e.target.value;
+    save();
+    updateStats();
+  });
+
+  $('slots').addEventListener('keydown', e => {
+    if (e.key !== 'Enter' || !e.target.dataset.i) return;
+    e.preventDefault();
+    const inputs = $('slots').querySelectorAll('input');
+    const next = inputs[Number(e.target.dataset.i) + 1];
+    if (next) next.focus();
+  });
+
+  document.querySelectorAll('.tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      curCat = btn.dataset.key;
+      render();
+    });
+  });
+
+  $('dateSelect').addEventListener('change', e => {
+    curDate = e.target.value;
+    render();
+  });
+
+  $('openDateBtn').addEventListener('click', () => {
+    const d = $('newDate').value;
+    if (!d) return toast('একটি তারিখ বেছে নিন');
+    curDate = d;
+    ensureDay(curDate);
+    save();
+    render();
+    toast(store[curDate] ? 'পেজ খোলা হয়েছে' : 'নতুন পেজ তৈরি হয়েছে');
+  });
+
+  $('deleteDateBtn').addEventListener('click', () => {
+    if (!confirm(`${curDate} তারিখের সব এন্ট্রি মুছবেন?`)) return;
+    delete store[curDate];
+    const remaining = Object.keys(store).sort().reverse();
+    curDate = remaining[0] || todayStr();
+    ensureDay(curDate);
+    save();
+    render();
+    toast('মুছে ফেলা হয়েছে');
+  });
+
+  $('exportBtn').addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify(store, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `work-log-${todayStr()}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  $('importBtn').addEventListener('click', () => $('importFile').click());
+
+  $('importFile').addEventListener('change', async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const parsed = JSON.parse(await file.text());
+      if (!parsed || typeof parsed !== 'object') throw new Error();
+      for (const d of Object.keys(parsed)) {
+        store[d] = parsed[d];
+        ensureDay(d);
+      }
+      save();
+      render();
+      toast('ইমপোর্ট সম্পন্ন');
+    } catch {
+      toast('ফাইলটি সঠিক নয়');
+    }
+    e.target.value = '';
+  });
+
+  load();
+  ensureDay(curDate);
+  save();
+  render();
+
+
+  // ===== Point table =====
+
+  function signed(n) {
+    return (n > 0 ? '+' : '') + n;
+  }
+
+  function calcPoints(day) {
+    const counts = {};
+    let total = 0;
+    for (const k of Object.keys(POINTS)) {
+      counts[k] = day[k].filter(x => x.trim()).length;
+      total += counts[k] * POINTS[k];
+    }
+    return { counts, total };
+  }
+
+  function renderPoints() {
+    const cur = calcPoints(store[curDate]);
+    const body = $('pointRows');
+    body.innerHTML = '';
+
+    for (const k of Object.keys(POINTS)) {
+      const tr = document.createElement('tr');
+      const sum = cur.counts[k] * POINTS[k];
+
+      const c1 = document.createElement('td');
+      c1.textContent = CATS[k].title;
+      const c2 = document.createElement('td');
+      c2.textContent = signed(POINTS[k]);
+      c2.className = POINTS[k] > 0 ? 'pos' : 'neg';
+      const c3 = document.createElement('td');
+      c3.textContent = cur.counts[k];
+      const c4 = document.createElement('td');
+      c4.textContent = signed(sum);
+      c4.className = sum > 0 ? 'pos' : sum < 0 ? 'neg' : '';
+
+      tr.append(c1, c2, c3, c4);
+      body.appendChild(tr);
+    }
+
+    let all = 0, activeDays = 0;
+    for (const d of Object.keys(store)) {
+      const r = calcPoints(store[d]);
+      all += r.total;
+      if (Object.values(r.counts).some(n => n > 0)) activeDays++;
+    }
+    const avg = activeDays ? all / activeDays : 0;
+    $('avgLabel').textContent = `গড় পয়েন্ট প্রতি দিন (${activeDays} দিন)`;
+    $('avgPerDay').textContent = (avg > 0 ? '+' : '') + avg.toFixed(1);
+    $('avgPerDay').className = avg < 0 ? 'neg' : avg > 0 ? 'pos' : '';
+
+    $('dayTotal').textContent = signed(cur.total);
+    $('dayTotal').className = cur.total < 0 ? 'neg' : cur.total > 0 ? 'pos' : '';
+    $('allTotal').textContent = signed(all);
+    $('allTotal').className = all < 0 ? 'neg' : all > 0 ? 'pos' : '';
+  }
+
+  // ===== IN gate: save date and time on entry =====
+  const CHECKIN_KEY = 'workLogCheckins';
+  const pad = n => String(n).padStart(2, '0');
+
+  function loadCheckins() {
+    try { return JSON.parse(localStorage.getItem(CHECKIN_KEY)) || []; } catch { return []; }
+  }
+
+  function saveCheckin(extra = {}) {
+    const now = new Date();
+    const record = {
+      date: todayStr(),
+      time: `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`,
+      timestamp: now.toISOString(),
+      ...extra
+    };
+    const list = loadCheckins();
+    list.push(record);
+    try { localStorage.setItem(CHECKIN_KEY, JSON.stringify(list)); } catch {}
+    return record;
+  }
+
+  $('gateBtn').addEventListener('click', () => {
+    const rec = saveCheckin();
+    $('gate').classList.add('hidden');
+    toast(`IN সেভ হয়েছে: ${rec.date} ${rec.time}`);
+  });
+
+  // ===== Missed-day penalty: type 20 lines by hand before entering =====
+  const PENALTY_LINES = 20;
+
+  function yesterdayStr() {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+
+  function needsPenalty() {
+    const list = loadCheckins();
+    if (list.length === 0) return false;              // first ever visit
+    const today = todayStr();
+    if (list.some(r => r.date === today)) return false; // already entered today
+    const last = list.map(r => r.date).sort().pop();
+    return last < yesterdayStr();                       // missed at least one day
+  }
+
+  let insertedChars = 0;
+  const penText = $('penText');
+  const ALLOWED_INPUT = ['insertText', 'insertLineBreak', 'insertParagraph', 'insertCompositionText',
+    'insertReplacementText', 'deleteContentBackward', 'deleteContentForward'];
+
+  function penWarn(msg) {
+    $('penMsg').textContent = msg;
+    $('penMsg').style.color = '#ef4444';
+  }
+
+  function penValidate() {
+    const raw = penText.value;
+    // Text that did not come through typing (paste, drop, autofill) makes the text longer than what was typed
+    const suspicious = raw.length > insertedChars + 2;
+    const lines = raw.split('\n').map(l => l.trim()).filter(l => l.length >= 3);
+    const unique = new Set(lines);
+    const ok = !suspicious && unique.size >= PENALTY_LINES;
+    $('penCount').textContent = `${Math.min(unique.size, PENALTY_LINES)} / ${PENALTY_LINES}`;
+    $('penSubmit').disabled = !ok;
+    if (suspicious) penWarn('কপি-পেস্ট ধরা পড়েছে। প্রতিটি লাইন নিজে টাইপ করুন।');
+    else if (ok) { $('penMsg').textContent = 'ঠিক আছে, জমা দিতে পারেন।'; $('penMsg').style.color = '#22c55e'; }
+    else { $('penMsg').textContent = `কমপক্ষে ${PENALTY_LINES}টি আলাদা লাইন লিখুন (প্রতিটি লাইন কমপক্ষে ৩ অক্ষর, একই লাইন দুবার নয়)।`; $('penMsg').style.color = '#8a94b8'; }
+  }
+
+  penText.addEventListener('beforeinput', e => {
+    if (!ALLOWED_INPUT.includes(e.inputType)) {
+      e.preventDefault();
+      penWarn('কপি-পেস্ট বা ড্রপ করা যাবে না। নিজে টাইপ করুন।');
+      return;
+    }
+    if (e.inputType.startsWith('insert') && e.data) insertedChars += e.data.length;
+  });
+  penText.addEventListener('paste', e => { e.preventDefault(); penWarn('পেস্ট করা যাবে না। নিজে টাইপ করুন।'); });
+  penText.addEventListener('cut', e => e.preventDefault());
+  penText.addEventListener('drop', e => e.preventDefault());
+  penText.addEventListener('contextmenu', e => e.preventDefault());
+  penText.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && ['v', 'x', 'c'].includes(e.key.toLowerCase())) e.preventDefault();
+  });
+  penText.addEventListener('input', penValidate);
+
+  $('penSubmit').addEventListener('click', () => {
+    const rec = saveCheckin({ penalty: true });
+    $('gate').classList.add('hidden');
+    toast(`শাস্তি সম্পন্ন, প্রবেশ সেভ হয়েছে: ${rec.date} ${rec.time}`);
+  });
+
+  if (needsPenalty()) {
+    $('gateBtn').classList.add('hidden');
+    $('gateSub').classList.add('hidden');
+    $('penalty').classList.remove('hidden');
+    $('penMsg').textContent = 'আপনি আগের দিন প্রবেশ করেননি। সাইটে ঢোকার আগে ২০টি লাইন নিজে টাইপ করুন।';
+    $('penMsg').style.color = '#fbbf24';
+  }
+
+  // ===== My time: view saved entry records =====
+  function openTimeModal() {
+    const list = loadCheckins().slice().sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1));
+    const ul = $('timeList');
+    ul.innerHTML = '';
+    $('timeCount').textContent = `মোট ${list.length} বার`;
+
+    if (list.length === 0) {
+      const li = document.createElement('li');
+      li.textContent = 'এখনো কোনো প্রবেশের রেকর্ড নেই।';
+      ul.appendChild(li);
+    }
+
+    for (const rec of list) {
+      const li = document.createElement('li');
+      const when = document.createElement('span');
+      when.className = 'when';
+      when.textContent = rec.penalty ? `${rec.date} (শাস্তি)` : rec.date;
+      const time = document.createElement('span');
+      time.className = 'time';
+      time.textContent = rec.time;
+      li.append(when, time);
+      ul.appendChild(li);
+    }
+    $('timeModal').classList.remove('hidden');
+  }
+
+  $('myTimeBtn').addEventListener('click', openTimeModal);
+  $('timeClose').addEventListener('click', () => $('timeModal').classList.add('hidden'));
+  $('timeModal').addEventListener('click', e => {
+    if (e.target.id === 'timeModal') $('timeModal').classList.add('hidden');
+  });
+
+  // ===== Background: orange-red SVG dragon that follows the pointer =====
+  (function () {
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = document.getElementById('dragonLayer');
+    const bodyLayer = document.getElementById('dragonBody');
+    let W = window.innerWidth, H = window.innerHeight;
+
+    function resize() {
+      W = window.innerWidth;
+      H = window.innerHeight;
+      svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    let mx = W / 2, my = H / 2;
+    document.addEventListener('pointermove', e => { mx = e.clientX; my = e.clientY; });
+    document.addEventListener('pointerdown', e => { mx = e.clientX; my = e.clientY; });
+
+    function el(tag, attrs) {
+      const e = document.createElementNS(NS, tag);
+      for (const k in attrs) e.setAttribute(k, attrs[k]);
+      return e;
+    }
+
+    const N = 40;          // number of body segments
+    const SPACING = 18;    // distance between segments
+    const HEAD_SCALE = 1.3;
+    const pts = Array.from({ length: N }, (_, i) => ({ x: W / 2 - i * SPACING, y: H / 2 }));
+
+    // Build tail-to-head so the head is drawn on top
+    const segs = [];
+    for (let i = N - 1; i >= 1; i--) {
+      const g = el('g', {});
+      if (i === 4) g.appendChild(el('use', { href: '#Aletas', transform: 'scale(0.4)' }));
+      g.appendChild(el('use', { href: '#Espina' }));
+      bodyLayer.appendChild(g);
+      segs[i] = g;
+    }
+    const headG = el('g', {});
+    headG.appendChild(el('use', { href: '#Aletas', transform: 'scale(0.5)' }));
+    headG.appendChild(el('use', { href: '#Cabeza' }));
+    bodyLayer.appendChild(headG);
+
+    function update(time) {
+      // Head drifts in a loose circle around the pointer
+      const a = time * 0.0008;
+      const tx = mx + Math.cos(a) * 30;
+      const ty = my + Math.sin(a) * 30;
+      pts[0].x += (tx - pts[0].x) * 0.08;
+      pts[0].y += (ty - pts[0].y) * 0.08;
+
+      // Each segment follows the one in front of it
+      for (let i = 1; i < N; i++) {
+        const dx = pts[i].x - pts[i - 1].x;
+        const dy = pts[i].y - pts[i - 1].y;
+        const d = Math.hypot(dx, dy) || 1;
+        pts[i].x = pts[i - 1].x + (dx / d) * SPACING;
+        pts[i].y = pts[i - 1].y + (dy / d) * SPACING;
+      }
+
+      // Place each segment, pointing its nose toward the head
+      for (let i = 1; i < N; i++) {
+        const ang = Math.atan2(pts[i - 1].y - pts[i].y, pts[i - 1].x - pts[i].x) * 180 / Math.PI;
+        const s = HEAD_SCALE * (1 - 0.65 * i / N);
+        segs[i].setAttribute('transform', `translate(${pts[i].x} ${pts[i].y}) rotate(${ang}) scale(${s})`);
+      }
+      const hAng = Math.atan2(pts[0].y - pts[1].y, pts[0].x - pts[1].x) * 180 / Math.PI;
+      headG.setAttribute('transform', `translate(${pts[0].x} ${pts[0].y}) rotate(${hAng}) scale(${HEAD_SCALE * 1.1})`);
+    }
+
+    function loop(time) {
+      update(time);
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+  })();
+  // ===== Tasks page, memory notes, dated reminders =====
+  const TASK_KEY = 'workLogTasks';
+  const SLOTS100 = 100;
+
+  function emptyTasks() {
+    return {
+      tasks: Array.from({ length: SLOTS100 }, () => ({ time: '', text: '' })),
+      remember: Array(SLOTS100).fill(''),
+      reminders: Array.from({ length: SLOTS100 }, () => ({ date: '', time: '', text: '', done: false }))
+    };
+  }
+
+  function loadTasksData() {
+    const base = emptyTasks();
+    try {
+      const d = JSON.parse(localStorage.getItem(TASK_KEY));
+      if (d && typeof d === 'object') {
+        if (Array.isArray(d.tasks)) d.tasks.slice(0, SLOTS100).forEach((t, i) => (base.tasks[i] = { ...base.tasks[i], ...t }));
+        if (Array.isArray(d.remember)) d.remember.slice(0, SLOTS100).forEach((t, i) => (base.remember[i] = String(t || '')));
+        if (Array.isArray(d.reminders)) d.reminders.slice(0, SLOTS100).forEach((r, i) => (base.reminders[i] = { ...base.reminders[i], ...r }));
+      }
+    } catch {}
+    return base;
+  }
+
+  let tdata = loadTasksData();
+
+  function saveTasksData() {
+    try { localStorage.setItem(TASK_KEY, JSON.stringify(tdata)); } catch {}
+  }
+
+  // Reminders that are due today or already expired and not yet confirmed with Done
+  function pendingReminders() {
+    const today = todayStr();
+    return tdata.reminders
+      .map((r, i) => ({ ...r, i }))
+      .filter(r => r.date && r.text.trim() && !r.done && r.date <= today);
+  }
+
+  function updateRemBtn() {
+    const pending = pendingReminders();
+    const expired = pending.some(r => r.date < todayStr());
+    const btn = $('remBtn');
+    btn.textContent = expired ? 'date expire' : 'reminder task';
+    btn.classList.toggle('alert', pending.length > 0);
+  }
+
+  function openRemModal() {
+    const pending = pendingReminders();
+    const list = $('remList');
+    list.innerHTML = '';
+    $('remCount').textContent = `বাকি ${pending.length}`;
+
+    if (pending.length === 0) {
+      const p = document.createElement('div');
+      p.className = 'hint';
+      p.textContent = 'এখন কোনো বাকি reminder নেই।';
+      list.appendChild(p);
+    }
+
+    for (const r of pending) {
+      const row = document.createElement('div');
+      row.className = 'rem-item';
+
+      const info = document.createElement('div');
+      info.style.flex = '1';
+      const title = document.createElement('div');
+      title.style.fontWeight = '600';
+      title.textContent = r.text;
+      const meta = document.createElement('div');
+      meta.className = 'hint';
+      const expired = r.date < todayStr();
+      meta.textContent = `${r.date}${r.time ? ' · ' + r.time : ''} · ${expired ? 'date expire' : 'আজকের কাজ'}`;
+      meta.style.color = expired ? '#ef4444' : '';
+      info.append(title, meta);
+
+      const done = document.createElement('button');
+      done.className = 'rem-done';
+      done.textContent = 'Done';
+      done.addEventListener('click', () => {
+        tdata.reminders[r.i].done = true;
+        saveTasksData();
+        updateRemBtn();
+        openRemModal();
+        toast('দেখা হয়েছে হিসেবে চিহ্নিত হলো');
+      });
+
+      row.append(info, done);
+      list.appendChild(row);
+    }
+
+    $('remModal').classList.remove('hidden');
+  }
+
+  function mkInput(type, value, sec, i, field, placeholder) {
+    const input = document.createElement('input');
+    input.type = type;
+    input.value = value || '';
+    input.placeholder = placeholder || '';
+    input.dataset.sec = sec;
+    input.dataset.i = i;
+    input.dataset.field = field;
+    if (type === 'text') input.maxLength = 300;
+    return input;
+  }
+
+  function mkNum(i) {
+    const n = document.createElement('span');
+    n.className = 'n';
+    n.textContent = i + 1;
+    return n;
+  }
+
+  function renderTasksPanel() {
+    const taskRows = $('taskRows');
+    taskRows.innerHTML = '';
+    tdata.tasks.forEach((t, i) => {
+      const row = document.createElement('div');
+      row.className = 'tr-row';
+      row.append(mkNum(i), mkInput('time', t.time, 'tasks', i, 'time'), mkInput('text', t.text, 'tasks', i, 'text', 'কাজ ' + (i + 1)));
+      taskRows.appendChild(row);
+    });
+
+    const remRows = $('rememberRows');
+    remRows.innerHTML = '';
+    tdata.remember.forEach((t, i) => {
+      const row = document.createElement('div');
+      row.className = 'tr-row';
+      row.append(mkNum(i), mkInput('text', t, 'remember', i, 'text', 'মনে রাখার বিষয় ' + (i + 1)));
+      remRows.appendChild(row);
+    });
+
+    const remiRows = $('reminderRows');
+    remiRows.innerHTML = '';
+    const today = todayStr();
+    tdata.reminders.forEach((r, i) => {
+      const row = document.createElement('div');
+      row.className = 'tr-row';
+      const status = document.createElement('span');
+      status.className = 'st';
+      status.textContent = !r.date || !r.text ? '' : r.done ? 'সম্পন্ন' : r.date < today ? 'expired' : r.date === today ? 'আজ' : 'বাকি';
+      if (r.date && r.date < today && !r.done) status.style.color = '#ef4444';
+      row.append(mkNum(i), mkInput('date', r.date, 'reminders', i, 'date'), mkInput('time', r.time, 'reminders', i, 'time'), mkInput('text', r.text, 'reminders', i, 'text', 'reminder ' + (i + 1)), status);
+      remiRows.appendChild(row);
+    });
+  }
+
+  $('tasksPanel').addEventListener('input', e => {
+    const el = e.target;
+    if (!el.dataset || !el.dataset.sec) return;
+    const i = Number(el.dataset.i);
+    const f = el.dataset.field;
+    if (el.dataset.sec === 'tasks') tdata.tasks[i][f] = el.value;
+    else if (el.dataset.sec === 'remember') tdata.remember[i] = el.value;
+    else if (el.dataset.sec === 'reminders') {
+      tdata.reminders[i][f] = el.value;
+      // Editing a reminder re-opens it for confirmation
+      tdata.reminders[i].done = false;
+    }
+    saveTasksData();
+    updateRemBtn();
+  });
+
+  $('tasksBtn').addEventListener('click', () => {
+    renderTasksPanel();
+    $('tasksPanel').classList.remove('hidden');
+  });
+  $('tasksClose').addEventListener('click', () => $('tasksPanel').classList.add('hidden'));
+  $('remBtn').addEventListener('click', openRemModal);
+  $('remClose').addEventListener('click', () => $('remModal').classList.add('hidden'));
+  $('remModal').addEventListener('click', e => {
+    if (e.target.id === 'remModal') $('remModal').classList.add('hidden');
+  });
+
+  updateRemBtn();
+  setInterval(updateRemBtn, 60000); // catches the day changing while the site stays open
+</script>
+</body>
+</html>
